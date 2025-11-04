@@ -15,6 +15,7 @@ import { TextInput } from '@/components/app/TextInput';
 import { SettingsPanel } from '@/components/app/SettingsPanel';
 import { PerformanceMetrics } from '@/components/app/PerformanceMetrics';
 import { SignLibraryModal } from '@/components/modals/SignLibraryModal';
+import { EmergencyPhrases } from '@/components/app/EmergencyPhrases';
 
 // Lib
 import * as modelHandler from '@/lib/modelHandler';
@@ -56,6 +57,7 @@ const SignLanguageApp = () => {
   
   // UI State
   const [showSignLibrary, setShowSignLibrary] = useState(false);
+  const [isCameraEnabled, setIsCameraEnabled] = useState(true);
 
   // Initialize
   useEffect(() => {
@@ -199,6 +201,22 @@ const SignLanguageApp = () => {
     speak(text, false);
   }, [speak]);
 
+  // Emergency Phrase Handler
+  const handleEmergencyPhrase = useCallback((phrase: string) => {
+    setMessages(prev => [...prev, {
+      id: `${Date.now()}-${Math.random()}`,
+      text: phrase,
+      timestamp: Date.now(),
+      isFromSign: false,
+    }]);
+    speak(phrase, false);
+  }, [speak]);
+
+  // Camera Toggle Handler
+  const handleCameraToggle = useCallback(() => {
+    setIsCameraEnabled(prev => !prev);
+  }, []);
+
   // Message Click Handler
   const handleMessageClick = useCallback((text: string) => {
     if (!isAudioPlaying) {
@@ -309,6 +327,8 @@ const SignLanguageApp = () => {
               <VideoDisplay
                 onVideoReady={handleVideoReady}
                 isActive={isAppStarted}
+                isCameraEnabled={isCameraEnabled}
+                onCameraToggle={handleCameraToggle}
               />
               <PredictionDisplay
                 currentSign={currentSign}
@@ -333,6 +353,10 @@ const SignLanguageApp = () => {
                   isAudioPlaying={isAudioPlaying}
                 />
               </div>
+              <EmergencyPhrases
+                onPhraseClick={handleEmergencyPhrase}
+                isAudioPlaying={isAudioPlaying}
+              />
               <SettingsPanel
                 confidenceThreshold={confidenceThreshold}
                 onConfidenceChange={setConfidenceThreshold}

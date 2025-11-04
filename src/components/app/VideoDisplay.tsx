@@ -1,16 +1,18 @@
 // ============= Video Display Component =============
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CameraOff, AlertCircle } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Camera, CameraOff, AlertCircle, Video, VideoOff } from 'lucide-react';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface VideoDisplayProps {
   onVideoReady: (videoElement: HTMLVideoElement, canvasElement: HTMLCanvasElement) => void;
   isActive: boolean;
+  isCameraEnabled: boolean;
+  onCameraToggle: () => void;
 }
 
-export const VideoDisplay = ({ onVideoReady, isActive }: VideoDisplayProps) => {
+export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCameraToggle }: VideoDisplayProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -18,7 +20,7 @@ export const VideoDisplay = ({ onVideoReady, isActive }: VideoDisplayProps) => {
   const [isCameraActive, setIsCameraActive] = useState(false);
 
   useEffect(() => {
-    if (isActive) {
+    if (isActive && isCameraEnabled) {
       startCamera();
     } else {
       stopCamera();
@@ -27,7 +29,7 @@ export const VideoDisplay = ({ onVideoReady, isActive }: VideoDisplayProps) => {
     return () => {
       stopCamera();
     };
-  }, [isActive]);
+  }, [isActive, isCameraEnabled]);
 
   const startCamera = async () => {
     try {
@@ -102,10 +104,54 @@ export const VideoDisplay = ({ onVideoReady, isActive }: VideoDisplayProps) => {
 
   return (
     <div className="space-y-4">
-      <Card className="overflow-hidden bg-black">
-        <div className="relative aspect-video">
-          {cameraError ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 p-6 space-y-4">
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-background/95 backdrop-blur">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Camera className="w-5 h-5 text-primary" />
+              <CardTitle className="text-lg">Camera Feed</CardTitle>
+            </div>
+            <div className="flex items-center space-x-3">
+              {isCameraActive && isCameraEnabled && (
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-xs text-muted-foreground">Live</span>
+                </div>
+              )}
+              <Button
+                variant={isCameraEnabled ? "default" : "outline"}
+                size="sm"
+                onClick={onCameraToggle}
+                disabled={!isActive}
+              >
+                {isCameraEnabled ? (
+                  <>
+                    <Video className="w-4 h-4 mr-2" />
+                    Camera On
+                  </>
+                ) : (
+                  <>
+                    <VideoOff className="w-4 h-4 mr-2" />
+                    Camera Off
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <div className="relative aspect-video bg-black">
+          {!isCameraEnabled && isActive ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+              <div className="text-center space-y-2">
+                <VideoOff className="w-12 h-12 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">Camera is turned off</p>
+                <Button variant="outline" size="sm" onClick={onCameraToggle}>
+                  Turn On Camera
+                </Button>
+              </div>
+            </div>
+          ) : cameraError ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 p-6 space-y-4 z-10">
               <CameraOff className="w-16 h-16 text-muted-foreground" />
               <Alert variant="destructive" className="max-w-md">
                 <AlertCircle className="h-4 w-4" />
@@ -116,8 +162,8 @@ export const VideoDisplay = ({ onVideoReady, isActive }: VideoDisplayProps) => {
                 Retry Camera Access
               </Button>
             </div>
-          ) : !isCameraActive ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+          ) : !isCameraActive && isCameraEnabled ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
               <div className="text-center space-y-2">
                 <Camera className="w-12 h-12 mx-auto text-muted-foreground animate-pulse" />
                 <p className="text-sm text-muted-foreground">Initializing camera...</p>
@@ -138,15 +184,6 @@ export const VideoDisplay = ({ onVideoReady, isActive }: VideoDisplayProps) => {
             height="480"
             className="hidden"
           />
-
-          {isCameraActive && (
-            <div className="absolute top-4 left-4">
-              <div className="flex items-center space-x-2 bg-black/70 rounded-full px-3 py-1.5">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-xs text-white font-medium">LIVE</span>
-              </div>
-            </div>
-          )}
         </div>
       </Card>
     </div>

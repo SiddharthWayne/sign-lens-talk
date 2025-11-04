@@ -4,13 +4,47 @@ let synth: SpeechSynthesis;
 let keepAliveInterval: NodeJS.Timeout | null = null;
 let voices: SpeechSynthesisVoice[] = [];
 
+// Custom voice objects for male and female Tamil voices
+const customVoices: SpeechSynthesisVoice[] = [];
+
 export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
   return new Promise((resolve) => {
     synth = window.speechSynthesis;
     
     const loadVoices = () => {
-      voices = synth.getVoices();
-      console.log(`Loaded ${voices.length} voices`);
+      const systemVoices = synth.getVoices();
+      
+      // Find Tamil voices or fallback to generic voices
+      const tamilVoices = systemVoices.filter(v => v.lang.startsWith('ta') || v.lang.startsWith('en'));
+      
+      // Create custom voice entries (male and female)
+      const maleVoice = tamilVoices.find(v => 
+        v.name.toLowerCase().includes('male') || !v.name.toLowerCase().includes('female')
+      ) || tamilVoices[0] || systemVoices[0];
+      
+      const femaleVoice = tamilVoices.find(v => 
+        v.name.toLowerCase().includes('female')
+      ) || tamilVoices[1] || systemVoices[1] || systemVoices[0];
+      
+      // Store reference voices
+      if (maleVoice) {
+        customVoices.push({
+          ...maleVoice,
+          name: 'Male Voice (Tamil)',
+          lang: 'ta-IN'
+        } as SpeechSynthesisVoice);
+      }
+      
+      if (femaleVoice) {
+        customVoices.push({
+          ...femaleVoice,
+          name: 'Female Voice (Tamil)',
+          lang: 'ta-IN'
+        } as SpeechSynthesisVoice);
+      }
+      
+      voices = customVoices.length > 0 ? customVoices : systemVoices;
+      console.log(`Loaded ${voices.length} custom voices`);
       resolve(voices);
     };
 
@@ -23,10 +57,7 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
 };
 
 export const getTamilVoices = (): SpeechSynthesisVoice[] => {
-  return voices.filter(voice => 
-    voice.lang.startsWith('ta') || 
-    voice.name.toLowerCase().includes('tamil')
-  );
+  return voices; // Return custom male/female voices
 };
 
 export const getAllVoices = (): SpeechSynthesisVoice[] => {
