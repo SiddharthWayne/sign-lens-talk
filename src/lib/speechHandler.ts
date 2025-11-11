@@ -17,32 +17,23 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
       // Clear previous custom voices
       customVoices.length = 0;
       
-      // Always create male and female voice options using any available voice as base
-      const baseVoice = systemVoices.find(v => 
-        v.lang.startsWith('ta') || v.lang.startsWith('en') || v.lang.startsWith('hi')
-      ) || systemVoices[0] || {
-        name: 'Default Voice',
-        lang: 'ta-IN',
-        voiceURI: 'default',
-        localService: true,
-        default: true
-      } as SpeechSynthesisVoice;
+      // Find best available voice (prefer Tamil, then English, then Hindi, then any)
+      const baseVoice = systemVoices.find(v => v.lang.startsWith('ta')) ||
+                        systemVoices.find(v => v.lang.startsWith('en')) ||
+                        systemVoices.find(v => v.lang.startsWith('hi')) ||
+                        systemVoices[0];
       
-      // Create male voice (lower pitch)
-      customVoices.push({
-        ...baseVoice,
-        name: 'Male Voice',
-        lang: 'ta-IN',
-        voiceURI: 'male-custom'
-      } as SpeechSynthesisVoice);
-      
-      // Create female voice (higher pitch)
-      customVoices.push({
-        ...baseVoice,
-        name: 'Female Voice',
-        lang: 'ta-IN',
-        voiceURI: 'female-custom'
-      } as SpeechSynthesisVoice);
+      if (baseVoice) {
+        // Create male voice using actual system voice
+        const maleVoice = Object.create(baseVoice);
+        maleVoice.name = 'Male Voice';
+        customVoices.push(maleVoice);
+        
+        // Create female voice using actual system voice
+        const femaleVoice = Object.create(baseVoice);
+        femaleVoice.name = 'Female Voice';
+        customVoices.push(femaleVoice);
+      }
       
       voices = customVoices;
       console.log(`Loaded ${voices.length} voices (Male & Female)`);
@@ -86,12 +77,13 @@ export const speak = (
   const utterance = new SpeechSynthesisUtterance(text);
   
   if (voice) {
+    // Use the actual voice from the voice object
     utterance.voice = voice;
-    utterance.lang = voice.lang;
-    // Adjust pitch based on voice type
-    if (voice.name.includes('Male')) {
+    utterance.lang = voice.lang || 'ta-IN';
+    // Adjust pitch based on voice name
+    if (voice.name === 'Male Voice') {
       utterance.pitch = 0.8; // Lower pitch for male
-    } else if (voice.name.includes('Female')) {
+    } else if (voice.name === 'Female Voice') {
       utterance.pitch = 1.2; // Higher pitch for female
     } else {
       utterance.pitch = 1.0;
