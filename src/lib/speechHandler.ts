@@ -4,8 +4,19 @@ let synth: SpeechSynthesis;
 let keepAliveInterval: NodeJS.Timeout | null = null;
 let voices: SpeechSynthesisVoice[] = [];
 
-// Custom voice objects for male and female Tamil voices
-const customVoices: SpeechSynthesisVoice[] = [];
+// Store the actual system voice to use
+let actualSystemVoice: SpeechSynthesisVoice | null = null;
+
+// Voice configuration with metadata
+interface VoiceConfig {
+  name: string;
+  pitch: number;
+}
+
+const voiceConfigs: VoiceConfig[] = [
+  { name: 'Male Voice', pitch: 0.8 },
+  { name: 'Female Voice', pitch: 1.2 }
+];
 
 export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
   return new Promise((resolve) => {
@@ -14,28 +25,32 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
     const loadVoices = () => {
       const systemVoices = synth.getVoices();
       
-      // Clear previous custom voices
-      customVoices.length = 0;
+      console.log('System voices available:', systemVoices.length);
       
       // Find best available voice (prefer Tamil, then English, then Hindi, then any)
-      const baseVoice = systemVoices.find(v => v.lang.startsWith('ta')) ||
-                        systemVoices.find(v => v.lang.startsWith('en')) ||
-                        systemVoices.find(v => v.lang.startsWith('hi')) ||
-                        systemVoices[0];
+      actualSystemVoice = systemVoices.find(v => v.lang.startsWith('ta')) ||
+                          systemVoices.find(v => v.lang.startsWith('en')) ||
+                          systemVoices.find(v => v.lang.startsWith('hi')) ||
+                          systemVoices[0];
       
-      if (baseVoice) {
-        // Create male voice using actual system voice
-        const maleVoice = Object.create(baseVoice);
-        maleVoice.name = 'Male Voice';
-        customVoices.push(maleVoice);
-        
-        // Create female voice using actual system voice
-        const femaleVoice = Object.create(baseVoice);
-        femaleVoice.name = 'Female Voice';
-        customVoices.push(femaleVoice);
+      if (actualSystemVoice) {
+        console.log('Using base voice:', actualSystemVoice.name, actualSystemVoice.lang);
+        // Create virtual voice list using the configs
+        voices = voiceConfigs.map(config => {
+          // Create a wrapper object that looks like a voice
+          return {
+            name: config.name,
+            lang: actualSystemVoice!.lang,
+            voiceURI: `${config.name}-${actualSystemVoice!.voiceURI}`,
+            localService: actualSystemVoice!.localService,
+            default: false,
+            _pitch: config.pitch // Store pitch in the object
+          } as SpeechSynthesisVoice & { _pitch: number };
+        });
+      } else {
+        voices = [];
       }
       
-      voices = customVoices;
       console.log(`Loaded ${voices.length} voices (Male & Female)`);
       resolve(voices);
     };
@@ -44,6 +59,7 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
       synth.onvoiceschanged = loadVoices;
     }
     
+    // Load voices immediately and also on change
     loadVoices();
   });
 };
@@ -69,6 +85,11 @@ export const speak = (
     return;
   }
 
+  if (!actualSystemVoice) {
+    console.error('No system voice available');
+    return;
+  }
+
   // Resume if paused
   if (synth.paused) {
     synth.resume();
@@ -76,20 +97,24 @@ export const speak = (
 
   const utterance = new SpeechSynthesisUtterance(text);
   
-  if (voice) {
-    // Use the actual voice from the voice object
-    utterance.voice = voice;
-    utterance.lang = voice.lang || 'ta-IN';
-    // Adjust pitch based on voice name
+  // Always use the actual system voice
+  utterance.voice = actualSystemVoice;
+  utterance.lang = actualSystemVoice.lang;
+  
+  // Adjust pitch based on selected voice
+  if (voice && '_pitch' in voice) {
+    utterance.pitch = (voice as any)._pitch;
+    console.log('Speaking with voice:', voice.name, 'pitch:', utterance.pitch);
+  } else if (voice) {
+    // Fallback pitch detection
     if (voice.name === 'Male Voice') {
-      utterance.pitch = 0.8; // Lower pitch for male
+      utterance.pitch = 0.8;
     } else if (voice.name === 'Female Voice') {
-      utterance.pitch = 1.2; // Higher pitch for female
+      utterance.pitch = 1.2;
     } else {
       utterance.pitch = 1.0;
     }
   } else {
-    utterance.lang = 'ta-IN';
     utterance.pitch = 1.0;
   }
   
