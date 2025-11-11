@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
-import { Moon, Sun, Play, HelpCircle, ArrowLeft } from 'lucide-react';
+import { Moon, Sun, Play, HelpCircle, ArrowLeft, AlertTriangle } from 'lucide-react';
 
 // Components
 import { ModelUploader } from '@/components/app/ModelUploader';
@@ -57,6 +57,7 @@ const SignLanguageApp = () => {
   
   // UI State
   const [showSignLibrary, setShowSignLibrary] = useState(false);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [isCameraEnabled, setIsCameraEnabled] = useState(true);
 
   // Initialize
@@ -353,10 +354,15 @@ const SignLanguageApp = () => {
                   isAudioPlaying={isAudioPlaying}
                 />
               </div>
-              <EmergencyPhrases
-                onPhraseClick={handleEmergencyPhrase}
-                isAudioPlaying={isAudioPlaying}
-              />
+              <Button
+                variant="destructive"
+                size="lg"
+                className="w-full"
+                onClick={() => setShowEmergencyModal(true)}
+              >
+                <AlertTriangle className="w-5 h-5 mr-2" />
+                Emergency Phrases
+              </Button>
               <SettingsPanel
                 confidenceThreshold={confidenceThreshold}
                 onConfidenceChange={setConfidenceThreshold}
@@ -376,6 +382,14 @@ const SignLanguageApp = () => {
         isOpen={showSignLibrary}
         onClose={() => setShowSignLibrary(false)}
         signs={classNames}
+      />
+      
+      {/* Emergency Phrases Modal */}
+      <EmergencyPhrases
+        open={showEmergencyModal}
+        onOpenChange={setShowEmergencyModal}
+        onPhraseClick={handleEmergencyPhrase}
+        isAudioPlaying={isAudioPlaying}
       />
     </div>
   );

@@ -1,9 +1,17 @@
-// ============= Emergency Phrases Component =============
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// ============= Emergency Phrases Modal Component =============
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 
 interface EmergencyPhrasesProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onPhraseClick: (phrase: string) => void;
   isAudioPlaying: boolean;
 }
@@ -18,28 +26,41 @@ const EMERGENCY_PHRASES = [
   "எனக்கு உடல்நலம் சரியில்லை",
 ];
 
-export const EmergencyPhrases = ({ onPhraseClick, isAudioPlaying }: EmergencyPhrasesProps) => {
+export const EmergencyPhrases = ({ 
+  open, 
+  onOpenChange, 
+  onPhraseClick, 
+  isAudioPlaying 
+}: EmergencyPhrasesProps) => {
   return (
-    <Card className="border-2 border-destructive/50">
-      <CardHeader className="pb-3">
-        <div className="flex items-center space-x-2">
-          <AlertTriangle className="w-5 h-5 text-destructive" />
-          <CardTitle className="text-lg text-destructive">Emergency Phrases</CardTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="w-6 h-6 text-destructive" />
+            <DialogTitle className="text-xl">Emergency Phrases</DialogTitle>
+          </div>
+          <DialogDescription>
+            Click any phrase to speak it immediately
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 mt-4">
+          {EMERGENCY_PHRASES.map((phrase, index) => (
+            <Button
+              key={index}
+              variant="destructive"
+              className="w-full justify-start text-left h-auto py-4 text-base"
+              onClick={() => {
+                onPhraseClick(phrase);
+                onOpenChange(false);
+              }}
+              disabled={isAudioPlaying}
+            >
+              {phrase}
+            </Button>
+          ))}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {EMERGENCY_PHRASES.map((phrase, index) => (
-          <Button
-            key={index}
-            variant="destructive"
-            className="w-full justify-start text-left h-auto py-3"
-            onClick={() => onPhraseClick(phrase)}
-            disabled={isAudioPlaying}
-          >
-            {phrase}
-          </Button>
-        ))}
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -114,7 +114,7 @@ export const SettingsPanel = ({
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {voices.length} Tamil voice(s) available
+            {voices.length} voice{voices.length !== 1 ? 's' : ''} available
           </p>
         </div>
       </CardContent>

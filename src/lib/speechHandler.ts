@@ -14,32 +14,30 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
     const loadVoices = () => {
       const systemVoices = synth.getVoices();
       
-      // Find Tamil voices or fallback to generic voices
-      const tamilVoices = systemVoices.filter(v => v.lang.startsWith('ta') || v.lang.startsWith('en'));
+      // Always create male and female voice options
+      // Find best available voices for Tamil or English
+      const availableVoices = systemVoices.filter(v => 
+        v.lang.startsWith('ta') || v.lang.startsWith('en') || v.lang.startsWith('hi')
+      );
       
-      // Create custom voice entries (male and female)
-      const maleVoice = tamilVoices.find(v => 
-        v.name.toLowerCase().includes('male') || !v.name.toLowerCase().includes('female')
-      ) || tamilVoices[0] || systemVoices[0];
+      // Use any available voice as base
+      const baseVoice = availableVoices[0] || systemVoices[0];
       
-      const femaleVoice = tamilVoices.find(v => 
-        v.name.toLowerCase().includes('female')
-      ) || tamilVoices[1] || systemVoices[1] || systemVoices[0];
-      
-      // Store reference voices
-      if (maleVoice) {
+      if (baseVoice) {
+        // Create male voice (lower pitch)
         customVoices.push({
-          ...maleVoice,
-          name: 'Male Voice (Tamil)',
-          lang: 'ta-IN'
+          ...baseVoice,
+          name: 'Male Voice',
+          lang: 'ta-IN',
+          voiceURI: 'male-custom'
         } as SpeechSynthesisVoice);
-      }
-      
-      if (femaleVoice) {
+        
+        // Create female voice (higher pitch)
         customVoices.push({
-          ...femaleVoice,
-          name: 'Female Voice (Tamil)',
-          lang: 'ta-IN'
+          ...baseVoice,
+          name: 'Female Voice',
+          lang: 'ta-IN',
+          voiceURI: 'female-custom'
         } as SpeechSynthesisVoice);
       }
       
@@ -87,12 +85,20 @@ export const speak = (
   if (voice) {
     utterance.voice = voice;
     utterance.lang = voice.lang;
+    // Adjust pitch based on voice type
+    if (voice.name.includes('Male')) {
+      utterance.pitch = 0.8; // Lower pitch for male
+    } else if (voice.name.includes('Female')) {
+      utterance.pitch = 1.2; // Higher pitch for female
+    } else {
+      utterance.pitch = 1.0;
+    }
   } else {
     utterance.lang = 'ta-IN';
+    utterance.pitch = 1.0;
   }
   
   utterance.rate = rate;
-  utterance.pitch = 1.0;
   utterance.volume = 1.0;
 
   // Keep-alive mechanism
