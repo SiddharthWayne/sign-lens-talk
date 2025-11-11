@@ -14,35 +14,38 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
     const loadVoices = () => {
       const systemVoices = synth.getVoices();
       
-      // Always create male and female voice options
-      // Find best available voices for Tamil or English
-      const availableVoices = systemVoices.filter(v => 
+      // Clear previous custom voices
+      customVoices.length = 0;
+      
+      // Always create male and female voice options using any available voice as base
+      const baseVoice = systemVoices.find(v => 
         v.lang.startsWith('ta') || v.lang.startsWith('en') || v.lang.startsWith('hi')
-      );
+      ) || systemVoices[0] || {
+        name: 'Default Voice',
+        lang: 'ta-IN',
+        voiceURI: 'default',
+        localService: true,
+        default: true
+      } as SpeechSynthesisVoice;
       
-      // Use any available voice as base
-      const baseVoice = availableVoices[0] || systemVoices[0];
+      // Create male voice (lower pitch)
+      customVoices.push({
+        ...baseVoice,
+        name: 'Male Voice',
+        lang: 'ta-IN',
+        voiceURI: 'male-custom'
+      } as SpeechSynthesisVoice);
       
-      if (baseVoice) {
-        // Create male voice (lower pitch)
-        customVoices.push({
-          ...baseVoice,
-          name: 'Male Voice',
-          lang: 'ta-IN',
-          voiceURI: 'male-custom'
-        } as SpeechSynthesisVoice);
-        
-        // Create female voice (higher pitch)
-        customVoices.push({
-          ...baseVoice,
-          name: 'Female Voice',
-          lang: 'ta-IN',
-          voiceURI: 'female-custom'
-        } as SpeechSynthesisVoice);
-      }
+      // Create female voice (higher pitch)
+      customVoices.push({
+        ...baseVoice,
+        name: 'Female Voice',
+        lang: 'ta-IN',
+        voiceURI: 'female-custom'
+      } as SpeechSynthesisVoice);
       
-      voices = customVoices.length > 0 ? customVoices : systemVoices;
-      console.log(`Loaded ${voices.length} custom voices`);
+      voices = customVoices;
+      console.log(`Loaded ${voices.length} voices (Male & Female)`);
       resolve(voices);
     };
 
