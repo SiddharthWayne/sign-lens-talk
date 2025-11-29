@@ -2,8 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
-import { Settings2, Gauge, Volume, Mic } from 'lucide-react';
+import { Settings2, Gauge, Volume } from 'lucide-react';
 
 interface SettingsPanelProps {
   confidenceThreshold: number;
@@ -80,32 +79,6 @@ export const SettingsPanel = ({
           />
           <p className="text-xs text-muted-foreground">
             Adjust how fast the voice speaks
-          </p>
-        </div>
-
-        {/* Voice Selection */}
-        <div className="space-y-3">
-          <Label htmlFor="voice-toggle" className="flex items-center space-x-2">
-            <Mic className="w-4 h-4" />
-            <span>Voice Gender</span>
-          </Label>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Male</span>
-            <Switch
-              id="voice-toggle"
-              checked={selectedVoice?.name === 'Female Voice'}
-              onCheckedChange={(checked) => {
-                const targetVoice = checked 
-                  ? voices.find(v => v.name === 'Female Voice')
-                  : voices.find(v => v.name === 'Male Voice');
-                if (targetVoice) onVoiceChange(targetVoice);
-              }}
-              disabled={voices.length === 0}
-            />
-            <span className="text-sm text-muted-foreground">Female</span>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Toggle to switch between male and female voice
           </p>
         </div>
       </CardContent>
