@@ -1,5 +1,5 @@
 // ============= Main Sign Language Application =============
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,7 @@ const SignLanguageApp = () => {
   const [currentConfidence, setCurrentConfidence] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const isAudioPlayingRef = useRef(false);
   
   // Settings State
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.70);
@@ -154,7 +155,7 @@ const SignLanguageApp = () => {
       speak(text, true);
     };
 
-    const getAudioState = () => isAudioPlaying;
+    const getAudioState = () => isAudioPlayingRef.current;
 
     modelHandler.startPredictionLoop(
       videoElement,
@@ -165,23 +166,29 @@ const SignLanguageApp = () => {
       handleAutoSpeak,
       getAudioState
     );
-  }, [confidenceThreshold, isAudioPlaying]);
+  }, [confidenceThreshold]);
+
+  // Helper to update both state and ref
+  const setAudioPlaying = useCallback((playing: boolean) => {
+    isAudioPlayingRef.current = playing;
+    setIsAudioPlaying(playing);
+  }, []);
 
   // Speak Function
   const speak = useCallback((text: string, isFromSign: boolean) => {
-    if (!text || isAudioPlaying) return;
+    if (!text || isAudioPlayingRef.current) return;
 
-    setIsAudioPlaying(true);
+    setAudioPlaying(true);
     
     speechHandler.speak(
       text,
       selectedVoice,
       speechRate,
-      () => setIsAudioPlaying(true),
-      () => setIsAudioPlaying(false),
+      () => setAudioPlaying(true),
+      () => setAudioPlaying(false),
       (error) => {
         console.error('Speech error:', error);
-        setIsAudioPlaying(false);
+        setAudioPlaying(false);
         toast({
           title: 'Speech Error',
           description: error.message,
@@ -189,7 +196,7 @@ const SignLanguageApp = () => {
         });
       }
     );
-  }, [isAudioPlaying, selectedVoice, speechRate, toast]);
+  }, [selectedVoice, speechRate, toast, setAudioPlaying]);
 
   // Manual Text Speech
   const handleManualSpeak = useCallback((text: string) => {

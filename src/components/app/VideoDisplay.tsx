@@ -248,7 +248,7 @@ export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCamera
           
           <video
             ref={videoRef}
-            className="w-full h-full object-cover transform -scale-x-100"
+            className="w-full h-full object-contain transform -scale-x-100"
             playsInline
             muted
           />
