@@ -1,9 +1,13 @@
 // ============= Video Display Component =============
+// Includes MediaPipe Background Subtraction toggle for enhanced accuracy
 import { useEffect, useRef, useState } from 'react';
-import { Camera, CameraOff, AlertCircle, Video, VideoOff } from 'lucide-react';
+import { Camera, CameraOff, AlertCircle, Video, VideoOff, Layers, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import * as bgSegmentation from '@/lib/backgroundSegmentation';
 
 interface VideoDisplayProps {
   onVideoReady: (videoElement: HTMLVideoElement, canvasElement: HTMLCanvasElement) => void;
@@ -15,9 +19,15 @@ interface VideoDisplayProps {
 export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCameraToggle }: VideoDisplayProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const segCanvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
+
+  // Background subtraction state
+  const [bgSubEnabled, setBgSubEnabled] = useState(false);
+  const [bgSubReady, setBgSubReady] = useState(false);
+  const [bgSubLoading, setBgSubLoading] = useState(false);
 
   useEffect(() => {
     if (isActive && isCameraEnabled) {
@@ -30,6 +40,50 @@ export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCamera
       stopCamera();
     };
   }, [isActive, isCameraEnabled]);
+
+  // Initialize/destroy segmentation when toggled
+  useEffect(() => {
+    if (bgSubEnabled && !bgSubReady && !bgSubLoading) {
+      initializeSegmentation();
+    }
+
+    bgSegmentation.setEnabled(bgSubEnabled && bgSubReady);
+  }, [bgSubEnabled, bgSubReady]);
+
+  // Cleanup segmentation on unmount
+  useEffect(() => {
+    return () => {
+      bgSegmentation.destroySegmentation();
+    };
+  }, []);
+
+  const initializeSegmentation = async () => {
+    if (!segCanvasRef.current) return;
+
+    setBgSubLoading(true);
+
+    bgSegmentation.initSegmentation(
+      segCanvasRef.current,
+      () => {
+        console.log('Background segmentation ready');
+        setBgSubReady(true);
+        setBgSubLoading(false);
+        bgSegmentation.setEnabled(true);
+      },
+      (error) => {
+        console.error('Background segmentation failed:', error);
+        setBgSubLoading(false);
+        setBgSubEnabled(false);
+      }
+    );
+  };
+
+  const handleBgSubToggle = (checked: boolean) => {
+    setBgSubEnabled(checked);
+    if (!checked) {
+      bgSegmentation.setEnabled(false);
+    }
+  };
 
   const startCamera = async () => {
     try {
@@ -50,7 +104,6 @@ export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCamera
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         
-        // Wait for video to be ready
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play()
             .then(() => {
@@ -112,10 +165,32 @@ export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCamera
               <CardTitle className="text-lg">Camera Feed</CardTitle>
             </div>
             <div className="flex items-center space-x-3">
+              {/* Background Subtraction Toggle */}
+              {isCameraActive && isCameraEnabled && (
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="bg-sub" className="text-xs text-muted-foreground flex items-center space-x-1 cursor-pointer">
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>BG Remove</span>
+                  </Label>
+                  {bgSubLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  ) : (
+                    <Switch
+                      id="bg-sub"
+                      checked={bgSubEnabled}
+                      onCheckedChange={handleBgSubToggle}
+                      className="scale-90"
+                    />
+                  )}
+                </div>
+              )}
+
               {isCameraActive && isCameraEnabled && (
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs text-muted-foreground">Live</span>
+                  <span className="text-xs text-muted-foreground">
+                    {bgSubEnabled && bgSubReady ? 'Live + BG Removed' : 'Live'}
+                  </span>
                 </div>
               )}
               <Button
@@ -178,8 +253,17 @@ export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCamera
             muted
           />
           
+          {/* Processing canvas (hidden) — used by TensorFlow.js */}
           <canvas
             ref={canvasRef}
+            width="640"
+            height="480"
+            className="hidden"
+          />
+
+          {/* Segmentation output canvas (hidden) — used by MediaPipe */}
+          <canvas
+            ref={segCanvasRef}
             width="640"
             height="480"
             className="hidden"
