@@ -155,7 +155,7 @@ const SignLanguageApp = () => {
       speak(text, true);
     };
 
-    const getAudioState = () => isAudioPlaying;
+    const getAudioState = () => isAudioPlayingRef.current;
 
     modelHandler.startPredictionLoop(
       videoElement,
@@ -166,7 +166,7 @@ const SignLanguageApp = () => {
       handleAutoSpeak,
       getAudioState
     );
-  }, [confidenceThreshold, isAudioPlaying]);
+  }, [confidenceThreshold]);
 
   // Speak Function
   const speak = useCallback((text: string, isFromSign: boolean) => {
