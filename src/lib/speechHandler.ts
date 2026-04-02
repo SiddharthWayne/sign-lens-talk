@@ -3,9 +3,12 @@
 let synth: SpeechSynthesis;
 let keepAliveInterval: NodeJS.Timeout | null = null;
 let voices: SpeechSynthesisVoice[] = [];
+let tamilSystemVoice: SpeechSynthesisVoice | null = null;
+let fallbackSystemVoice: SpeechSynthesisVoice | null = null;
 
-// Store the actual system voice to use
-let actualSystemVoice: SpeechSynthesisVoice | null = null;
+const TAMIL_TEXT_REGEX = /[\u0B80-\u0BFF]/;
+const DEFAULT_TAMIL_LANG = 'ta-IN';
+const DEFAULT_FALLBACK_LANG = 'en-US';
 
 // Voice configuration with metadata
 interface VoiceConfig {
@@ -18,6 +21,22 @@ const voiceConfigs: VoiceConfig[] = [
   { name: 'Female Voice', pitch: 1.2 }
 ];
 
+const containsTamilText = (text: string): boolean => TAMIL_TEXT_REGEX.test(text);
+
+const resolveSpeechTarget = (text: string): { voice: SpeechSynthesisVoice | null; lang: string } => {
+  if (containsTamilText(text)) {
+    return {
+      voice: tamilSystemVoice,
+      lang: tamilSystemVoice?.lang || DEFAULT_TAMIL_LANG,
+    };
+  }
+
+  return {
+    voice: fallbackSystemVoice,
+    lang: fallbackSystemVoice?.lang || DEFAULT_FALLBACK_LANG,
+  };
+};
+
 export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
   return new Promise((resolve) => {
     synth = window.speechSynthesis;
@@ -26,25 +45,26 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
       const systemVoices = synth.getVoices();
       
       console.log('System voices available:', systemVoices.length);
+
+      tamilSystemVoice = systemVoices.find(v => v.lang.toLowerCase().startsWith('ta')) || null;
+      fallbackSystemVoice = tamilSystemVoice ||
+        systemVoices.find(v => v.lang.toLowerCase().startsWith('en')) ||
+        systemVoices.find(v => v.lang.toLowerCase().startsWith('hi')) ||
+        systemVoices[0] ||
+        null;
       
-      // Find best available voice (prefer Tamil, then English, then Hindi, then any)
-      actualSystemVoice = systemVoices.find(v => v.lang.startsWith('ta')) ||
-                          systemVoices.find(v => v.lang.startsWith('en')) ||
-                          systemVoices.find(v => v.lang.startsWith('hi')) ||
-                          systemVoices[0];
-      
-      if (actualSystemVoice) {
-        console.log('Using base voice:', actualSystemVoice.name, actualSystemVoice.lang);
-        // Create virtual voice list using the configs
+      if (fallbackSystemVoice) {
+        console.log('Using fallback voice:', fallbackSystemVoice.name, fallbackSystemVoice.lang);
+        console.log('Tamil voice available:', tamilSystemVoice ? `${tamilSystemVoice.name} (${tamilSystemVoice.lang})` : 'No');
+
         voices = voiceConfigs.map(config => {
-          // Create a wrapper object that looks like a voice
           return {
             name: config.name,
-            lang: actualSystemVoice!.lang,
-            voiceURI: `${config.name}-${actualSystemVoice!.voiceURI}`,
-            localService: actualSystemVoice!.localService,
+            lang: fallbackSystemVoice!.lang,
+            voiceURI: `${config.name}-${fallbackSystemVoice!.voiceURI}`,
+            localService: fallbackSystemVoice!.localService,
             default: false,
-            _pitch: config.pitch // Store pitch in the object
+            _pitch: config.pitch
           } as SpeechSynthesisVoice & { _pitch: number };
         });
       } else {
@@ -59,13 +79,12 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
       synth.onvoiceschanged = loadVoices;
     }
     
-    // Load voices immediately and also on change
     loadVoices();
   });
 };
 
 export const getTamilVoices = (): SpeechSynthesisVoice[] => {
-  return voices; // Return custom male/female voices
+  return voices;
 };
 
 export const getAllVoices = (): SpeechSynthesisVoice[] => {
@@ -85,28 +104,27 @@ export const speak = (
     return;
   }
 
-  if (!actualSystemVoice) {
+  if (!tamilSystemVoice && !fallbackSystemVoice) {
     console.error('No system voice available');
     return;
   }
 
-  // Resume if paused
   if (synth.paused) {
     synth.resume();
   }
 
   const utterance = new SpeechSynthesisUtterance(text);
+  const { voice: resolvedVoice, lang } = resolveSpeechTarget(text);
+
+  if (resolvedVoice) {
+    utterance.voice = resolvedVoice;
+  }
+  utterance.lang = lang;
   
-  // Always use the actual system voice
-  utterance.voice = actualSystemVoice;
-  utterance.lang = actualSystemVoice.lang;
-  
-  // Adjust pitch based on selected voice
   if (voice && '_pitch' in voice) {
     utterance.pitch = (voice as any)._pitch;
-    console.log('Speaking with voice:', voice.name, 'pitch:', utterance.pitch);
+    console.log('Speaking with voice:', voice.name, 'pitch:', utterance.pitch, 'lang:', lang, 'system voice:', resolvedVoice?.name || 'browser-default');
   } else if (voice) {
-    // Fallback pitch detection
     if (voice.name === 'Male Voice') {
       utterance.pitch = 0.8;
     } else if (voice.name === 'Female Voice') {
@@ -121,7 +139,6 @@ export const speak = (
   utterance.rate = rate;
   utterance.volume = 1.0;
 
-  // Keep-alive mechanism
   if (keepAliveInterval) {
     clearInterval(keepAliveInterval);
   }
