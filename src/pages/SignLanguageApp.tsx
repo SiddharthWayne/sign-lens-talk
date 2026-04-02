@@ -42,6 +42,7 @@ const SignLanguageApp = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const isAudioPlayingRef = useRef(false);
+  const speakRef = useRef<(text: string, isFromSign: boolean) => void>(() => {});
   
   // Settings State
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.70);
