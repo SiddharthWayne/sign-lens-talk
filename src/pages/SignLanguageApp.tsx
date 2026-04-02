@@ -42,6 +42,7 @@ const SignLanguageApp = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const isAudioPlayingRef = useRef(false);
+  const speakRef = useRef<(text: string, isFromSign: boolean) => void>(() => {});
   
   // Settings State
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.70);
@@ -152,7 +153,7 @@ const SignLanguageApp = () => {
     };
 
     const handleAutoSpeak = (text: string) => {
-      speak(text, true);
+      speakRef.current(text, true);
     };
 
     const getAudioState = () => isAudioPlayingRef.current;
@@ -197,6 +198,11 @@ const SignLanguageApp = () => {
       }
     );
   }, [selectedVoice, speechRate, toast, setAudioPlaying]);
+
+  // Keep speakRef always pointing to latest speak function
+  useEffect(() => {
+    speakRef.current = speak;
+  }, [speak]);
 
   // Manual Text Speech
   const handleManualSpeak = useCallback((text: string) => {
