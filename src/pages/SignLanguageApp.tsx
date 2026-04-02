@@ -199,6 +199,11 @@ const SignLanguageApp = () => {
     );
   }, [selectedVoice, speechRate, toast, setAudioPlaying]);
 
+  // Keep speakRef always pointing to latest speak function
+  useEffect(() => {
+    speakRef.current = speak;
+  }, [speak]);
+
   // Manual Text Speech
   const handleManualSpeak = useCallback((text: string) => {
     setMessages(prev => [...prev, {
