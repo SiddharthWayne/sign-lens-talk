@@ -153,7 +153,7 @@ const SignLanguageApp = () => {
     };
 
     const handleAutoSpeak = (text: string) => {
-      speak(text, true);
+      speakRef.current(text, true);
     };
 
     const getAudioState = () => isAudioPlayingRef.current;
