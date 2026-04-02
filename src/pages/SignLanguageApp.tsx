@@ -177,26 +177,39 @@ const SignLanguageApp = () => {
 
   // Speak Function
   const speak = useCallback((text: string, isFromSign: boolean) => {
-    if (!text || isAudioPlayingRef.current) return;
-
-    setAudioPlaying(true);
+    if (!text) return;
     
-    speechHandler.speak(
-      text,
-      selectedVoice,
-      speechRate,
-      () => setAudioPlaying(true),
-      () => setAudioPlaying(false),
-      (error) => {
-        console.error('Speech error:', error);
-        setAudioPlaying(false);
-        toast({
-          title: 'Speech Error',
-          description: error.message,
-          variant: 'destructive',
-        });
-      }
-    );
+    // Cancel any ongoing speech first
+    speechHandler.cancelSpeech();
+    setAudioPlaying(false);
+
+    // Small delay to let cancel take effect
+    setTimeout(() => {
+      setAudioPlaying(true);
+      
+      speechHandler.speak(
+        text,
+        selectedVoice,
+        speechRate,
+        () => {
+          console.log('Speech onStart fired for:', text);
+          setAudioPlaying(true);
+        },
+        () => {
+          console.log('Speech onEnd fired');
+          setAudioPlaying(false);
+        },
+        (error) => {
+          console.error('Speech error:', error);
+          setAudioPlaying(false);
+          toast({
+            title: 'Speech Error',
+            description: error.message,
+            variant: 'destructive',
+          });
+        }
+      );
+    }, 50);
   }, [selectedVoice, speechRate, toast, setAudioPlaying]);
 
   // Keep speakRef always pointing to latest speak function
