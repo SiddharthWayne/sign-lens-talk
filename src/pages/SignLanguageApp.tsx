@@ -246,10 +246,8 @@ const SignLanguageApp = () => {
 
   // Message Click Handler
   const handleMessageClick = useCallback((text: string) => {
-    if (!isAudioPlaying) {
-      speak(text, false);
-    }
-  }, [isAudioPlaying, speak]);
+    speak(text, false);
+  }, [speak]);
 
   // Clear History
   const handleClearHistory = useCallback(() => {
