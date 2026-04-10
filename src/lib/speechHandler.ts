@@ -4,6 +4,7 @@ let synth: SpeechSynthesis;
 let keepAliveInterval: NodeJS.Timeout | null = null;
 let voices: SpeechSynthesisVoice[] = [];
 let tamilSystemVoice: SpeechSynthesisVoice | null = null;
+let hindiSystemVoice: SpeechSynthesisVoice | null = null;
 let fallbackSystemVoice: SpeechSynthesisVoice | null = null;
 
 const TAMIL_TEXT_REGEX = /[\u0B80-\u0BFF]/;
@@ -124,6 +125,7 @@ const resolveSpeechTarget = (
   text: string
 ): { voice: SpeechSynthesisVoice | null; lang: string; textToSpeak: string; mode: 'native-tamil' | 'transliterated-tamil' | 'default' } => {
   if (containsTamilText(text)) {
+    // Best case: native Tamil voice available
     if (tamilSystemVoice) {
       return {
         voice: tamilSystemVoice,
@@ -133,9 +135,12 @@ const resolveSpeechTarget = (
       };
     }
 
+    // Fallback: transliterate and use Hindi voice (closest accent to Tamil)
+    // or fall back to English if Hindi unavailable
+    const closestVoice = hindiSystemVoice || fallbackSystemVoice;
     return {
-      voice: fallbackSystemVoice,
-      lang: fallbackSystemVoice?.lang || DEFAULT_FALLBACK_LANG,
+      voice: closestVoice,
+      lang: DEFAULT_TAMIL_LANG, // Always set Tamil lang to hint the browser
       textToSpeak: transliterateTamilText(text) || text,
       mode: 'transliterated-tamil',
     };
@@ -157,11 +162,23 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
       const systemVoices = synth.getVoices();
       
       console.log('System voices available:', systemVoices.length);
+      // Log all available voices for debugging
+      systemVoices.forEach(v => console.log(`  Voice: ${v.name} | Lang: ${v.lang} | Local: ${v.localService}`));
 
-      tamilSystemVoice = systemVoices.find(v => v.lang.toLowerCase().startsWith('ta')) || null;
+      // Search for Tamil voice broadly (ta, ta-IN, ta-LK, or name containing "Tamil")
+      tamilSystemVoice = systemVoices.find(v => v.lang.toLowerCase().startsWith('ta')) ||
+        systemVoices.find(v => v.name.toLowerCase().includes('tamil')) ||
+        null;
+      
+      // Hindi voice as closest accent fallback for Tamil transliteration
+      hindiSystemVoice = systemVoices.find(v => v.lang.toLowerCase().startsWith('hi')) ||
+        systemVoices.find(v => v.name.toLowerCase().includes('hindi')) ||
+        null;
+
+      // English fallback for non-Tamil text
       fallbackSystemVoice = systemVoices.find(v => v.lang.toLowerCase().startsWith('en')) ||
         systemVoices.find(v => v.default) ||
-        systemVoices.find(v => v.lang.toLowerCase().startsWith('hi')) ||
+        hindiSystemVoice ||
         tamilSystemVoice ||
         systemVoices[0] ||
         null;
@@ -171,6 +188,7 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
       if (baseVoice) {
         console.log('Using fallback voice:', fallbackSystemVoice?.name || 'None', fallbackSystemVoice?.lang || 'N/A');
         console.log('Tamil voice available:', tamilSystemVoice ? `${tamilSystemVoice.name} (${tamilSystemVoice.lang})` : 'No');
+        console.log('Hindi voice available:', hindiSystemVoice ? `${hindiSystemVoice.name} (${hindiSystemVoice.lang})` : 'No');
 
         voices = voiceConfigs.map(config => {
           return {
