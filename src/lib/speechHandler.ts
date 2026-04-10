@@ -10,6 +10,64 @@ const TAMIL_TEXT_REGEX = /[\u0B80-\u0BFF]/;
 const DEFAULT_TAMIL_LANG = 'ta-IN';
 const DEFAULT_FALLBACK_LANG = 'en-US';
 
+const TAMIL_INDEPENDENT_VOWELS: Record<string, string> = {
+  'அ': 'a',
+  'ஆ': 'aa',
+  'இ': 'i',
+  'ஈ': 'ii',
+  'உ': 'u',
+  'ஊ': 'uu',
+  'எ': 'e',
+  'ஏ': 'ee',
+  'ஐ': 'ai',
+  'ஒ': 'o',
+  'ஓ': 'oo',
+  'ஔ': 'au',
+  'ஃ': 'h',
+};
+
+const TAMIL_CONSONANTS: Record<string, string> = {
+  'க': 'k',
+  'ங': 'ng',
+  'ச': 'ch',
+  'ஜ': 'j',
+  'ஞ': 'nj',
+  'ட': 't',
+  'ண': 'n',
+  'த': 'th',
+  'ந': 'n',
+  'ப': 'p',
+  'ம': 'm',
+  'ய': 'y',
+  'ர': 'r',
+  'ல': 'l',
+  'வ': 'v',
+  'ழ': 'zh',
+  'ள': 'l',
+  'ற': 'r',
+  'ன': 'n',
+  'ஷ': 'sh',
+  'ஸ': 's',
+  'ஹ': 'h',
+  'ஶ': 'sh',
+};
+
+const TAMIL_VOWEL_SIGNS: Record<string, string> = {
+  'ா': 'aa',
+  'ி': 'i',
+  'ீ': 'ii',
+  'ு': 'u',
+  'ூ': 'uu',
+  'ெ': 'e',
+  'ே': 'ee',
+  'ை': 'ai',
+  'ொ': 'o',
+  'ோ': 'oo',
+  'ௌ': 'au',
+};
+
+const TAMIL_VIRAMA = '்';
+
 // Voice configuration with metadata
 interface VoiceConfig {
   name: string;
@@ -23,17 +81,71 @@ const voiceConfigs: VoiceConfig[] = [
 
 const containsTamilText = (text: string): boolean => TAMIL_TEXT_REGEX.test(text);
 
-const resolveSpeechTarget = (text: string): { voice: SpeechSynthesisVoice | null; lang: string } => {
+const transliterateTamilText = (text: string): string => {
+  let result = '';
+
+  for (let index = 0; index < text.length; index += 1) {
+    const currentChar = text[index];
+    const nextChar = text[index + 1];
+
+    if (TAMIL_INDEPENDENT_VOWELS[currentChar]) {
+      result += TAMIL_INDEPENDENT_VOWELS[currentChar];
+      continue;
+    }
+
+    if (TAMIL_CONSONANTS[currentChar]) {
+      const baseSound = TAMIL_CONSONANTS[currentChar];
+
+      if (nextChar === TAMIL_VIRAMA) {
+        result += baseSound;
+        index += 1;
+        continue;
+      }
+
+      if (nextChar && TAMIL_VOWEL_SIGNS[nextChar]) {
+        result += `${baseSound}${TAMIL_VOWEL_SIGNS[nextChar]}`;
+        index += 1;
+        continue;
+      }
+
+      result += `${baseSound}a`;
+      continue;
+    }
+
+    if (!TAMIL_VOWEL_SIGNS[currentChar] && currentChar !== TAMIL_VIRAMA) {
+      result += currentChar;
+    }
+  }
+
+  return result.replace(/\s+/g, ' ').trim();
+};
+
+const resolveSpeechTarget = (
+  text: string
+): { voice: SpeechSynthesisVoice | null; lang: string; textToSpeak: string; mode: 'native-tamil' | 'transliterated-tamil' | 'default' } => {
   if (containsTamilText(text)) {
+    if (tamilSystemVoice) {
+      return {
+        voice: tamilSystemVoice,
+        lang: tamilSystemVoice.lang || DEFAULT_TAMIL_LANG,
+        textToSpeak: text,
+        mode: 'native-tamil',
+      };
+    }
+
     return {
-      voice: tamilSystemVoice,
-      lang: tamilSystemVoice?.lang || DEFAULT_TAMIL_LANG,
+      voice: fallbackSystemVoice,
+      lang: fallbackSystemVoice?.lang || DEFAULT_FALLBACK_LANG,
+      textToSpeak: transliterateTamilText(text) || text,
+      mode: 'transliterated-tamil',
     };
   }
 
   return {
     voice: fallbackSystemVoice,
     lang: fallbackSystemVoice?.lang || DEFAULT_FALLBACK_LANG,
+    textToSpeak: text,
+    mode: 'default',
   };
 };
 
@@ -47,22 +159,25 @@ export const initSpeech = (): Promise<SpeechSynthesisVoice[]> => {
       console.log('System voices available:', systemVoices.length);
 
       tamilSystemVoice = systemVoices.find(v => v.lang.toLowerCase().startsWith('ta')) || null;
-      fallbackSystemVoice = tamilSystemVoice ||
-        systemVoices.find(v => v.lang.toLowerCase().startsWith('en')) ||
+      fallbackSystemVoice = systemVoices.find(v => v.lang.toLowerCase().startsWith('en')) ||
+        systemVoices.find(v => v.default) ||
         systemVoices.find(v => v.lang.toLowerCase().startsWith('hi')) ||
+        tamilSystemVoice ||
         systemVoices[0] ||
         null;
       
-      if (fallbackSystemVoice) {
-        console.log('Using fallback voice:', fallbackSystemVoice.name, fallbackSystemVoice.lang);
+      const baseVoice = fallbackSystemVoice || tamilSystemVoice;
+
+      if (baseVoice) {
+        console.log('Using fallback voice:', fallbackSystemVoice?.name || 'None', fallbackSystemVoice?.lang || 'N/A');
         console.log('Tamil voice available:', tamilSystemVoice ? `${tamilSystemVoice.name} (${tamilSystemVoice.lang})` : 'No');
 
         voices = voiceConfigs.map(config => {
           return {
             name: config.name,
-            lang: fallbackSystemVoice!.lang,
-            voiceURI: `${config.name}-${fallbackSystemVoice!.voiceURI}`,
-            localService: fallbackSystemVoice!.localService,
+            lang: baseVoice.lang,
+            voiceURI: `${config.name}-${baseVoice.voiceURI}`,
+            localService: baseVoice.localService,
             default: false,
             _pitch: config.pitch
           } as SpeechSynthesisVoice & { _pitch: number };
@@ -91,6 +206,30 @@ export const getAllVoices = (): SpeechSynthesisVoice[] => {
   return voices;
 };
 
+export const primeSpeech = (): void => {
+  const activeSynth = synth || window.speechSynthesis;
+
+  if (!activeSynth) {
+    return;
+  }
+
+  synth = activeSynth;
+
+  try {
+    const unlockUtterance = new SpeechSynthesisUtterance('.');
+    unlockUtterance.volume = 0;
+    unlockUtterance.rate = 1;
+    unlockUtterance.pitch = 1;
+    unlockUtterance.lang = fallbackSystemVoice?.lang || DEFAULT_FALLBACK_LANG;
+    unlockUtterance.voice = fallbackSystemVoice || tamilSystemVoice || null;
+
+    activeSynth.cancel();
+    activeSynth.speak(unlockUtterance);
+  } catch (error) {
+    console.warn('Speech priming failed:', error);
+  }
+};
+
 export const speak = (
   text: string,
   voice: SpeechSynthesisVoice | null,
@@ -113,8 +252,8 @@ export const speak = (
     synth.resume();
   }
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  const { voice: resolvedVoice, lang } = resolveSpeechTarget(text);
+  const { voice: resolvedVoice, lang, textToSpeak, mode } = resolveSpeechTarget(text);
+  const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
   if (resolvedVoice) {
     utterance.voice = resolvedVoice;
@@ -148,7 +287,7 @@ export const speak = (
   }, 5000);
 
   utterance.onstart = () => {
-    console.log('Speech started:', text);
+    console.log('Speech started:', { requestedText: text, spokenText: textToSpeak, lang, mode });
     if (onStart) onStart();
   };
 

@@ -116,6 +116,7 @@ const SignLanguageApp = () => {
 
   // Start App Handler
   const handleStartApp = useCallback(() => {
+    speechHandler.primeSpeech();
     setIsAppStarted(true);
     speechHandler.resumeSpeech();
   }, []);
@@ -219,6 +220,7 @@ const SignLanguageApp = () => {
 
   // Manual Text Speech
   const handleManualSpeak = useCallback((text: string) => {
+    speechHandler.primeSpeech();
     setMessages(prev => [...prev, {
       id: `${Date.now()}-${Math.random()}`,
       text,
@@ -230,6 +232,7 @@ const SignLanguageApp = () => {
 
   // Emergency Phrase Handler
   const handleEmergencyPhrase = useCallback((phrase: string) => {
+    speechHandler.primeSpeech();
     setMessages(prev => [...prev, {
       id: `${Date.now()}-${Math.random()}`,
       text: phrase,
@@ -246,6 +249,7 @@ const SignLanguageApp = () => {
 
   // Message Click Handler
   const handleMessageClick = useCallback((text: string) => {
+    speechHandler.primeSpeech();
     speak(text, false);
   }, [speak]);
 
