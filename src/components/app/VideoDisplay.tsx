@@ -89,6 +89,15 @@ export const VideoDisplay = ({ onVideoReady, isActive, isCameraEnabled, onCamera
     try {
       setCameraError(null);
       console.log('Requesting camera access...');
+
+      // Guard against missing mediaDevices (non-HTTPS or unsupported browser)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError(
+          'Camera API is not available. Please ensure you are using HTTPS and a modern browser.'
+        );
+        setIsCameraActive(false);
+        return;
+      }
       
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {

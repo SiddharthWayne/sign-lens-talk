@@ -135,12 +135,34 @@ const resolveSpeechTarget = (
       };
     }
 
-    // Fallback: transliterate and use Hindi voice (closest accent to Tamil)
-    // or fall back to English if Hindi unavailable
-    const closestVoice = hindiSystemVoice || fallbackSystemVoice;
+    // Fallback: transliterate and use Hindi voice for Indian accent
+    if (hindiSystemVoice) {
+      return {
+        voice: hindiSystemVoice,
+        lang: hindiSystemVoice.lang || 'hi-IN',
+        textToSpeak: transliterateTamilText(text) || text,
+        mode: 'transliterated-tamil',
+      };
+    }
+
+    // Last resort: use any Indian English voice, or default voice with Indian lang hint
+    const indianEnglishVoice = synth?.getVoices().find(v => 
+      v.lang === 'en-IN' || v.name.toLowerCase().includes('india')
+    );
+    
+    if (indianEnglishVoice) {
+      return {
+        voice: indianEnglishVoice,
+        lang: 'en-IN',
+        textToSpeak: transliterateTamilText(text) || text,
+        mode: 'transliterated-tamil',
+      };
+    }
+
+    // Absolute fallback with transliteration
     return {
-      voice: closestVoice,
-      lang: DEFAULT_TAMIL_LANG, // Always set Tamil lang to hint the browser
+      voice: fallbackSystemVoice,
+      lang: 'en-IN', // Hint Indian English even if voice is British
       textToSpeak: transliterateTamilText(text) || text,
       mode: 'transliterated-tamil',
     };
